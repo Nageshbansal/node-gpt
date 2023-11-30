@@ -4,19 +4,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from config import N_EMBED, DROPOUT
 from feed_forward import FeedForward
 from rotatry_embeding import RotaryEmbedding
 
 
 class AttentionHead(nn.Module):
-    def __init__(self, embed_size, head_size):
+    def __init__(self, embed_size, head_size, n_embd, dropout):
         super().__init__()
         self.key = nn.Linear(embed_size, head_size, bias=False)
         self.query = nn.Linear(embed_size, head_size, bias=False)
         self.value = nn.Linear(embed_size, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(embed_size, embed_size)))
-        self.dropout = nn.Dropout(DROPOUT)
+        self.dropout = nn.Dropout(dropout)
         self.rotary_embed = RotaryEmbedding(dim=head_size)
 
     def forward(self, x):
@@ -42,11 +41,11 @@ class AttentionHead(nn.Module):
 
 class MultiHeadAttention(nn.Module):
     """Multiple heads of self-attention in parallel."""
-    def __init__(self, num_heads, head_size):
+    def __init__(self, num_heads, head_size, dropout, n_embd):
         super().__init__()
-        self.heads = nn.ModuleList([AttentionHead(N_EMBED, head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(N_EMBED, N_EMBED)
-        self.dropout = nn.Dropout(DROPOUT)
+        self.heads = nn.ModuleList([AttentionHead(n_embd, head_size, n_embd, dropout) for _ in range(num_heads)])
+        self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         output = torch.cat([head(x) for head in self.heads], dim=-1)
@@ -56,13 +55,13 @@ class MultiHeadAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, embed_size, num_heads):
+    def __init__(self, embed_size, num_heads, dropout, n_embd):
         super().__init__()
         head_size = embed_size // num_heads
-        self.self_attention = MultiHeadAttention(num_heads, head_size)
+        self.self_attention = MultiHeadAttention(num_heads, head_size, dropout, n_embd)
         self.feed_forward = FeedForward(embed_size)
-        self.layer_norm1 = nn.LayerNorm(N_EMBED)
-        self.layer_norm2 = nn.LayerNorm(N_EMBED)
+        self.layer_norm1 = nn.LayerNorm(n_embd)
+        self.layer_norm2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
         x = x + self.self_attention(self.layer_norm1(x))
