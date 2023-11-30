@@ -25,8 +25,8 @@ class AttentionHead(nn.Module):
         query = self.query(x)
 
         if self.rotary_embed is not None:
-            query = self.rotary_embed.rotate_queries_or_keys(query)
-            key = self.rotary_embed.rotate_queries_or_keys(key)
+            query = self.rotary_embed.rotary_embedding(query)
+            key = self.rotary_embed.rotary_embedding(key)
         
         # Linear Self-attention
         weights = query @ key.transpose(-2, -1) * C ** -0.5
